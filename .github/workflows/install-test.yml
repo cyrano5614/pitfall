@@ -58,6 +58,11 @@ jobs:
       - name: Install project
         run: make install-project
       #----------------------------------------------
+      #             run linter
+      #----------------------------------------------
+      - name: Run linter
+        run: make lint
+      #----------------------------------------------
       #              run test suite
       #----------------------------------------------
       - name: Run tests

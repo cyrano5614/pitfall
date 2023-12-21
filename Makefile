@@ -43,6 +43,7 @@ format:
 
 lint:
 	poetry run ruff $(sources)
+	poetry run ruff format --check $(sources)
 
 scan:
 	poetry run bandit -r pitfall/
