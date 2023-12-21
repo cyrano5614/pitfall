@@ -13,3 +13,4 @@ notes/
 build/
 dist/
 */__pycache__
+.python-version

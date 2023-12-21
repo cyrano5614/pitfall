@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pitfall.utils import get_random_string
-from typing import List
-import boto3
 import time
+from typing import List
+
+import boto3
+
+from pitfall.utils import get_random_string
 
 
 class TemporaryUser:
@@ -34,10 +36,11 @@ class TemporaryUser:
     :type wait: bool
     :param wait: If set to True, the context manager waits 10 seconds for the Access Key and Secret Key to become active.
     """
+
     def __init__(self, policies: List[str], iam_client=None, wait=True):
         self.iam_policies = policies
-        self.iam_client   = boto3.client('iam') if iam_client is None else iam_client
-        self.wait         = wait
+        self.iam_client = boto3.client("iam") if iam_client is None else iam_client
+        self.wait = wait
 
         self.username = self.__generate_username()
 
@@ -65,40 +68,23 @@ class TemporaryUser:
 
     def create(self) -> None:
         self.__create_user_response = self.iam_client.create_user(
-            Path='/',
+            Path="/",
             UserName=self.username,
-            Tags=[
-                {
-                    'Key': 'Purpose',
-                    'Value': 'integration-testing'
-                },
-                {
-                    'Key': 'CreatedBy',
-                    'Value': 'pitfall'
-                }
-            ]
+            Tags=[{"Key": "Purpose", "Value": "integration-testing"}, {"Key": "CreatedBy", "Value": "pitfall"}],
         )
 
     def delete(self) -> None:
         self.iam_client.delete_user(UserName=self.username)
 
     def generate_api_keys(self) -> None:
-        self.__create_access_key_response = self.iam_client.create_access_key(
-            UserName=self.username
-        )
+        self.__create_access_key_response = self.iam_client.create_access_key(UserName=self.username)
 
     def delete_api_keys(self) -> None:
-        self.iam_client.delete_access_key(
-            UserName=self.username,
-            AccessKeyId=self.access_key
-        )
+        self.iam_client.delete_access_key(UserName=self.username, AccessKeyId=self.access_key)
 
     def attach_policies(self) -> None:
         for i in self.iam_policies:
-            self.iam_client.attach_user_policy(
-                PolicyArn=i,
-                UserName=self.username
-            )
+            self.iam_client.attach_user_policy(PolicyArn=i, UserName=self.username)
 
     def detach_policies(self) -> None:
         # we must retrieve the list of policies attached to this user and not rely on
@@ -107,10 +93,7 @@ class TemporaryUser:
 
         for i in r["AttachedPolicies"]:
             policy_arn = i["PolicyArn"]
-            self.iam_client.detach_user_policy(
-                UserName=self.username,
-                PolicyArn=policy_arn
-            )
+            self.iam_client.detach_user_policy(UserName=self.username, PolicyArn=policy_arn)
 
     @property
     def access_key(self) -> str:

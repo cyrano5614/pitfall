@@ -12,15 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from contextlib import redirect_stdout
-from io import StringIO
-from pathlib import Path
-from pitfall.core import PulumiIntegrationTest, PulumiIntegrationTestOptions
-from pitfall.config import PulumiConfigurationKey, DEFAULT_PULUMI_CONFIG_PASSPHRASE, DEFAULT_PULUMI_HOME
-from pitfall.plugins import PulumiPlugin
-from pitfall import exceptions
-from pitfall import utils
-from unittest.mock import patch, MagicMock
 import base64
 import json
 import os
@@ -28,6 +19,19 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from pitfall import exceptions, utils
+from pitfall.config import (
+    DEFAULT_PULUMI_CONFIG_PASSPHRASE,
+    DEFAULT_PULUMI_HOME,
+    PulumiConfigurationKey,
+)
+from pitfall.core import PulumiIntegrationTest, PulumiIntegrationTestOptions
+from pitfall.plugins import PulumiPlugin
 
 
 class TestPulumiIntegrationTest(unittest.TestCase):
@@ -37,21 +41,23 @@ class TestPulumiIntegrationTest(unittest.TestCase):
 
     def tearDown(self):
         self.integration_test.delete()
-        self.integration_test._change_directory(choice='old')  # return to parent directory to not cause other tests to fail
+        self.integration_test._change_directory(
+            choice="old"
+        )  # return to parent directory to not cause other tests to fail
 
         # unset environment variables
-        for i in ['PULUMI_HOME', 'PULUMI_CONFIG_PASSPHRASE']:
+        for i in ["PULUMI_HOME", "PULUMI_CONFIG_PASSPHRASE"]:
             if i in os.environ:
                 os.environ.pop(i)
 
     def test_encrypt_and_format_config(self):
-        secret_config_key = 'dbpassword'
-        secret_config_value = b'qwertyuiop'
+        secret_config_key = "dbpassword"
+        secret_config_value = b"qwertyuiop"
 
         cfg = [
-            PulumiConfigurationKey(name='aws:region', value='us-east-1'),
-            PulumiConfigurationKey(name='environment', value='testing'),
-            PulumiConfigurationKey(name=secret_config_key, value=secret_config_value, encrypted=True)
+            PulumiConfigurationKey(name="aws:region", value="us-east-1"),
+            PulumiConfigurationKey(name="environment", value="testing"),
+            PulumiConfigurationKey(name=secret_config_key, value=secret_config_value, encrypted=True),
         ]
 
         self.integration_test.config = cfg
@@ -60,19 +66,17 @@ class TestPulumiIntegrationTest(unittest.TestCase):
 
         namespace = self.integration_test.project.name
 
-        encrypted_secret_config_value = formatted_cfg[f'{namespace}:{secret_config_key}']['secure']
+        encrypted_secret_config_value = formatted_cfg[f"{namespace}:{secret_config_key}"]["secure"]
 
         expected = {
-            'aws:region': 'us-east-1',
-            f'{namespace}:environment': 'testing',
-            f'{namespace}:{secret_config_key}': {
-                'secure': encrypted_secret_config_value
-            }
+            "aws:region": "us-east-1",
+            f"{namespace}:environment": "testing",
+            f"{namespace}:{secret_config_key}": {"secure": encrypted_secret_config_value},
         }
         self.assertDictEqual(expected, formatted_cfg)
 
-        version, nonce_b64, message_b64 = encrypted_secret_config_value.split(':')
-        self.assertEqual('v1', version)
+        version, nonce_b64, message_b64 = encrypted_secret_config_value.split(":")
+        self.assertEqual("v1", version)
 
         nonce = base64.b64decode(nonce_b64)
         self.assertIsInstance(nonce, bytes)
@@ -83,8 +87,8 @@ class TestPulumiIntegrationTest(unittest.TestCase):
 
         index = len(message) - 16  # MAC tag is 16 bytes
 
-        ciphertext  = message[:index]  # first n bytes is the ciphertext
-        mac         = message[index:]  # last 16 bytes is the MAC tag
+        ciphertext = message[:index]  # first n bytes is the ciphertext
+        mac = message[index:]  # last 16 bytes is the MAC tag
 
         self.assertIsInstance(ciphertext, bytes)
         self.assertIsInstance(mac, bytes)
@@ -92,25 +96,28 @@ class TestPulumiIntegrationTest(unittest.TestCase):
         self.assertEqual(len(secret_config_value), len(ciphertext))
         self.assertEqual(16, len(mac))
 
-        decrypted = utils.decrypt_with_aes_gcm(key=self.integration_test.encryption_key, nonce=nonce, ciphertext=ciphertext, mac=mac)
+        decrypted = utils.decrypt_with_aes_gcm(
+            key=self.integration_test.encryption_key,
+            nonce=nonce,
+            ciphertext=ciphertext,
+            mac=mac,
+        )
         self.assertEqual(secret_config_value, decrypted)
 
     def test_install_pulumi_plugins_success(self):
         self.integration_test.opts.verbose = True
 
         # use a fixed directory to prevent redownloading plugins on each test run
-        pulumi_home = Path('/tmp/.pulumi')
+        pulumi_home = Path("/tmp/.pulumi")
         pulumi_home.mkdir(exist_ok=True)
 
-        os.environ['PULUMI_HOME'] = str(pulumi_home)
+        os.environ["PULUMI_HOME"] = str(pulumi_home)
 
-        kind    = 'resource'
-        name    = 'random'
-        version = 'v1.1.0'
+        kind = "resource"
+        name = "random"
+        version = "v4.14.0"
 
-        plugins = [
-            PulumiPlugin(kind=kind, name=name, version=version)
-        ]
+        plugins = [PulumiPlugin(kind=kind, name=name, version=version)]
 
         self.integration_test.plugins = plugins
 
@@ -119,52 +126,50 @@ class TestPulumiIntegrationTest(unittest.TestCase):
             self.integration_test._install_pulumi_plugins()
 
         output = b.getvalue()
-        self.assertTrue(output.startswith('Installed plugin:'))
+        self.assertTrue(output.startswith("Installed plugin:"))
 
-        path = Path(f'{pulumi_home}/plugins/{kind}-{name}-{version}')
+        path = Path(f"{pulumi_home}/plugins/{kind}-{name}-{version}")
 
         self.assertTrue(path.exists())
         self.assertTrue(path.is_dir())
 
     def test_install_pulumi_plugins_failure(self):
         # use a fixed directory to prevent redownloading plugins on each test run
-        pulumi_home = Path('/tmp/.pulumi')
+        pulumi_home = Path("/tmp/.pulumi")
         pulumi_home.mkdir(exist_ok=True)
 
-        os.environ['PULUMI_HOME'] = str(pulumi_home)
+        os.environ["PULUMI_HOME"] = str(pulumi_home)
 
-        kind    = 'resource'
-        name    = 'invalid'
-        version = 'v1.0.0'
+        kind = "resource"
+        name = "invalid"
+        version = "v1.0.0"
 
-        plugins = [
-            PulumiPlugin(kind=kind, name=name, version=version)
-        ]
+        plugins = [PulumiPlugin(kind=kind, name=name, version=version)]
 
         self.integration_test.plugins = plugins
 
         with self.assertRaises(exceptions.PulumiPluginInstallError):
             self.integration_test._install_pulumi_plugins()
 
-        path = Path(f'{pulumi_home}/plugins/{kind}-{name}-{version}')
+        path = Path(f"{pulumi_home}/plugins/{kind}-{name}-{version}")
         self.assertFalse(path.expanduser().exists())
 
     def test_tmp_directory_name(self):
         self.assertTrue(self.integration_test.tmp_directory.name.startswith("pitf-"))
 
     def test_change_directory_to_old_dir(self):
-        self.integration_test._change_directory(choice='old')
+        self.integration_test._change_directory(choice="old")
         self.assertEqual(Path.cwd(), self.integration_test.old_directory)
 
     def test_change_directory_to_test_dir(self):
-        self.integration_test._change_directory(choice='test')
+        self.integration_test._change_directory(choice="test")
         self.assertEqual(Path.cwd(), self.integration_test.tmp_directory)
 
     def test_change_directory_raises_exception(self):
-        self.integration_test.tmp_directory = Path('/tmp/does-not-exist')
+        self.integration_test.tmp_directory = Path("/tmp/does-not-exist")
 
         with self.assertRaises(FileNotFoundError):
-            self.integration_test._change_directory(choice='test')
+            self.integration_test._change_directory(choice="test")
 
         self.assertEqual(Path.cwd(), self.integration_test.old_directory)
 
@@ -174,10 +179,10 @@ class TestPulumiIntegrationTest(unittest.TestCase):
         self.assertEqual(expected["url"], self.integration_test.project.url.geturl())
 
     def test_copy_pulumi_code(self):
-        with tempfile.TemporaryDirectory(prefix='pitf-', dir='/tmp') as d:
+        with tempfile.TemporaryDirectory(prefix="pitf-", dir="/tmp") as d:
             self.integration_test.code_directory = d
 
-            pulumi_filename = '__main__.py'
+            pulumi_filename = "__main__.py"
 
             # create a dummy Pulumi Python program in the temp directory
             tmp_directory = Path(d)
@@ -185,9 +190,9 @@ class TestPulumiIntegrationTest(unittest.TestCase):
             src_f1.touch()
 
             # create a subdirectory within the tmp directory with a dummy file
-            subdir = tmp_directory.joinpath('misc')
+            subdir = tmp_directory.joinpath("misc")
             subdir.mkdir()
-            src_f2 = subdir.joinpath('userdata.txt')
+            src_f2 = subdir.joinpath("userdata.txt")
             src_f2.touch()
 
             self.integration_test._copy_pulumi_code()
@@ -197,38 +202,38 @@ class TestPulumiIntegrationTest(unittest.TestCase):
             self.assertTrue(dst_f1.exists())
             self.assertTrue(dst_f1.is_file())
 
-            dst_f2 = self.integration_test.tmp_directory.joinpath('misc/userdata.txt')
+            dst_f2 = self.integration_test.tmp_directory.joinpath("misc/userdata.txt")
             self.assertTrue(dst_f2.exists())
             self.assertTrue(dst_f2.is_file())
 
     def test_set_pulumi_envvars_to_defaults(self):
         self.integration_test._set_pulumi_envvars()
 
-        expected = os.environ.get('PULUMI_HOME')
+        expected = os.environ.get("PULUMI_HOME")
         self.assertEqual(expected, DEFAULT_PULUMI_HOME)
 
-        expected = os.environ.get('PULUMI_CONFIG_PASSPHRASE')
+        expected = os.environ.get("PULUMI_CONFIG_PASSPHRASE")
         self.assertEqual(expected, DEFAULT_PULUMI_CONFIG_PASSPHRASE)
 
     def test_set_pulumi_envvars_to_user_specified(self):
-        pulumi_home = '/tmp'
-        os.environ['PULUMI_HOME'] = pulumi_home
+        pulumi_home = "/tmp"
+        os.environ["PULUMI_HOME"] = pulumi_home
 
-        pulumi_config_passphrase = 'testtest'
-        os.environ['PULUMI_CONFIG_PASSPHRASE'] = pulumi_config_passphrase
+        pulumi_config_passphrase = "testtest"
+        os.environ["PULUMI_CONFIG_PASSPHRASE"] = pulumi_config_passphrase
 
         self.integration_test._set_pulumi_envvars()
 
-        expected = os.environ.get('PULUMI_HOME')
+        expected = os.environ.get("PULUMI_HOME")
         self.assertEqual(expected, pulumi_home)
 
-        expected = os.environ.get('PULUMI_CONFIG_PASSPHRASE')
+        expected = os.environ.get("PULUMI_CONFIG_PASSPHRASE")
         self.assertEqual(expected, pulumi_config_passphrase)
 
     def test_set_pulumi_envvars_verify_unset_envvars(self):
-        environment_variable = 'PULUMI_DISABLE_CHECKPOINT_BACKUPS'
+        environment_variable = "PULUMI_DISABLE_CHECKPOINT_BACKUPS"
 
-        os.environ[environment_variable] = 'true'
+        os.environ[environment_variable] = "true"
 
         self.integration_test._set_pulumi_envvars()
 
@@ -236,9 +241,9 @@ class TestPulumiIntegrationTest(unittest.TestCase):
 
     def test_workspace(self):
         self.assertTrue(self.integration_test.workspace.name.startswith(self.integration_test.project.name))
-        self.assertTrue(self.integration_test.workspace.name.endswith('workspace.json'))
+        self.assertTrue(self.integration_test.workspace.name.endswith("workspace.json"))
 
-        parts = self.integration_test.workspace.name.split('-')
+        parts = self.integration_test.workspace.name.split("-")
         expected = parts[-2]
         actual = utils.sha1sum(bytes(self.integration_test.project.filepath))
         self.assertEqual(expected, actual)
@@ -249,7 +254,7 @@ class TestPulumiIntegrationTest(unittest.TestCase):
         self.assertTrue(self.integration_test.workspace.is_file())
 
         contents = json.loads(self.integration_test.workspace.read_text())
-        self.assertEqual(self.integration_test.stack.name, contents['stack'])
+        self.assertEqual(self.integration_test.stack.name, contents["stack"])
 
     # TODO: add more tests here to verify setup works correctly end-to-end
     # perhaps use mock to verify each method as been called at most once
@@ -260,21 +265,31 @@ class TestPulumiIntegrationTest(unittest.TestCase):
         stdout = b'{"s3_bucket_name":"pitfall-test-bucket"}'
         json_stdout = json.loads(stdout)
 
-        completed_process = subprocess.CompletedProcess(args=['pulumi', 'stack', 'output', '--json'], returncode=0, stdout=stdout, stderr=b'')
+        completed_process = subprocess.CompletedProcess(
+            args=["pulumi", "stack", "output", "--json"],
+            returncode=0,
+            stdout=stdout,
+            stderr=b"",
+        )
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             outputs = self.integration_test.get_stack_outputs()
 
             self.assertIsInstance(outputs, dict)
             self.assertDictEqual(json_stdout, outputs)
 
     def test_get_stack_outputs_raises_exception(self):
-        stdout = b'error: no Pulumi.yaml project file found'
+        stdout = b"error: no Pulumi.yaml project file found"
 
-        completed_process = subprocess.CompletedProcess(args=['pulumi', 'stack', 'output', '--json'], returncode=255, stdout=stdout, stderr=b'')
+        completed_process = subprocess.CompletedProcess(
+            args=["pulumi", "stack", "output", "--json"],
+            returncode=255,
+            stdout=stdout,
+            stderr=b"",
+        )
 
         err = None
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             try:
                 self.integration_test.get_stack_outputs()
             except exceptions.PulumiStackOutputError as e:
@@ -294,7 +309,7 @@ class TestPulumiIntegrationTestWithContextManager(unittest.TestCase):
         os.chdir(self.pwd)
 
         # unset environment variables
-        for i in ['PULUMI_HOME', 'PULUMI_CONFIG_PASSPHRASE']:
+        for i in ["PULUMI_HOME", "PULUMI_CONFIG_PASSPHRASE"]:
             if i in os.environ:
                 os.environ.pop(i)
 
@@ -328,7 +343,7 @@ class TestPulumiIntegrationTestWithContextManager(unittest.TestCase):
     def test_context_manager_auto_preview(self):
         opts = PulumiIntegrationTestOptions(cleanup=True, preview=True, up=False, destroy=False)
 
-        with patch('pitfall.core.PulumiPreview', autospec=True) as mock_preview:
+        with patch("pitfall.core.PulumiPreview", autospec=True) as mock_preview:
             mock_preview.return_value.execute.return_value = True
 
             with PulumiIntegrationTest(opts=opts) as t:
@@ -339,7 +354,7 @@ class TestPulumiIntegrationTestWithContextManager(unittest.TestCase):
     def test_context_manager_auto_up(self):
         opts = PulumiIntegrationTestOptions(cleanup=True, preview=False, up=True, destroy=False)
 
-        with patch('pitfall.core.PulumiUp', autospec=True) as mock_up:
+        with patch("pitfall.core.PulumiUp", autospec=True) as mock_up:
             mock_up.return_value.execute.return_value = True
 
             with PulumiIntegrationTest(opts=opts) as t:
@@ -350,7 +365,7 @@ class TestPulumiIntegrationTestWithContextManager(unittest.TestCase):
     def test_context_manager_auto_delete(self):
         opts = PulumiIntegrationTestOptions(cleanup=True, preview=False, up=False, destroy=True)
 
-        with patch('pitfall.core.PulumiDestroy', autospec=True) as mock_destroy:
+        with patch("pitfall.core.PulumiDestroy", autospec=True) as mock_destroy:
             mock_destroy.return_value.execute.return_value = True
 
             with PulumiIntegrationTest(opts=opts) as t:

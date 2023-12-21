@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Dict, Any
-import boto3
 import random
+from typing import Any, Dict, List
 
+import boto3
 
 DEFAULT_REGION = "us-east-1"
 
@@ -45,7 +45,7 @@ def get_all_regions() -> List[str]:
     :returns: a list of AWS regions
     :rtype: list
     """
-    ec2 = boto3.client('ec2', region_name=DEFAULT_REGION)
+    ec2 = boto3.client("ec2", region_name=DEFAULT_REGION)
 
     r = ec2.describe_regions()
 

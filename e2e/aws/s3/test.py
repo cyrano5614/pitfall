@@ -1,45 +1,46 @@
-from pitfall.helpers.aws import utils
-from pitfall import PulumiIntegrationTest, PulumiIntegrationTestOptions
-from pitfall import PulumiConfigurationKey, PulumiPlugin
-from pathlib import Path
-import botocore
-import boto3
 import os
 import time
 import unittest
+from pathlib import Path
+
+import boto3
+import botocore
+
+from pitfall import PulumiConfigurationKey, PulumiIntegrationTest, PulumiIntegrationTestOptions, PulumiPlugin
+from pitfall.helpers.aws import utils
 
 
 class TestPulumiCode(unittest.TestCase):
     def setUp(self):
-        self.s3  = boto3.client(service_name="s3")
+        self.s3 = boto3.client(service_name="s3")
         self.dir = Path(__file__)
         self.pwd = Path.cwd()
 
-        self.plugins = [
-            PulumiPlugin(kind='resource', name='aws', version='v1.7.0')
-        ]
+        self.plugins = [PulumiPlugin(kind="resource", name="aws", version="v1.7.0")]
 
     def tearDown(self):
         os.chdir(self.pwd)
 
     def test_aws_provision_s3_bucket_with_auto_cleanup_destroy(self):
-        region      = utils.get_random_region()
-        bucket_name = f"pitfall-test-bucket-1"
+        region = utils.get_random_region()
+        bucket_name = "pitfall-test-bucket-1"
 
         config = [
-            PulumiConfigurationKey(name='aws:region', value=region),
-            PulumiConfigurationKey(name='s3-bucket-name', value=bucket_name),
-            PulumiConfigurationKey(name='environment', value='test'),
-            PulumiConfigurationKey(name='owner', value='@bincyber'),
-            PulumiConfigurationKey(name='billing-project', value='integration-testing'),
-            PulumiConfigurationKey(name='customer', value=b'ACME Corp', encrypted=True)
+            PulumiConfigurationKey(name="aws:region", value=region),
+            PulumiConfigurationKey(name="s3-bucket-name", value=bucket_name),
+            PulumiConfigurationKey(name="environment", value="test"),
+            PulumiConfigurationKey(name="owner", value="@bincyber"),
+            PulumiConfigurationKey(name="billing-project", value="integration-testing"),
+            PulumiConfigurationKey(name="customer", value=b"ACME Corp", encrypted=True),
         ]
 
         provisioned_bucket_name = None
 
         opts = PulumiIntegrationTestOptions(cleanup=True, preview=True, up=True, destroy=True)
 
-        with PulumiIntegrationTest(directory=self.dir, config=config, plugins=self.plugins, opts=opts) as integration_test:
+        with PulumiIntegrationTest(
+            directory=self.dir, config=config, plugins=self.plugins, opts=opts
+        ) as integration_test:
             outputs = integration_test.get_stack_outputs()
 
             provisioned_bucket_name = outputs["s3_bucket_name"]
@@ -51,20 +52,22 @@ class TestPulumiCode(unittest.TestCase):
 
     def test_aws_provision_s3_bucket_without_auto_cleanup_destroy(self):
         region = "us-east-1"
-        bucket_name = f"pitfall-test-bucket-2"
+        bucket_name = "pitfall-test-bucket-2"
 
         config = [
-            PulumiConfigurationKey(name='aws:region', value=region),
-            PulumiConfigurationKey(name='s3-bucket-name', value=bucket_name),
-            PulumiConfigurationKey(name='environment', value='test'),
-            PulumiConfigurationKey(name='owner', value='@bincyber'),
-            PulumiConfigurationKey(name='billing-project', value='integration-testing'),
-            PulumiConfigurationKey(name='customer', value=b'ACME Corp', encrypted=True)
+            PulumiConfigurationKey(name="aws:region", value=region),
+            PulumiConfigurationKey(name="s3-bucket-name", value=bucket_name),
+            PulumiConfigurationKey(name="environment", value="test"),
+            PulumiConfigurationKey(name="owner", value="@bincyber"),
+            PulumiConfigurationKey(name="billing-project", value="integration-testing"),
+            PulumiConfigurationKey(name="customer", value=b"ACME Corp", encrypted=True),
         ]
 
         opts = PulumiIntegrationTestOptions(verbose=True, cleanup=False, preview=False, destroy=False)
 
-        with PulumiIntegrationTest(directory=self.dir, config=config, plugins=self.plugins, opts=opts) as integration_test:
+        with PulumiIntegrationTest(
+            directory=self.dir, config=config, plugins=self.plugins, opts=opts
+        ) as integration_test:
             integration_test.preview.execute()
 
             pulumi_step = integration_test.preview.steps[0]
@@ -84,7 +87,7 @@ class TestPulumiCode(unittest.TestCase):
             self.assertIs(dict, type(response))
 
             expected = response["ResponseMetadata"]["HTTPHeaders"]["x-amz-bucket-region"]
-            actual   = region
+            actual = region
             self.assertEqual(expected, actual)
 
             # verify required tags have been set by checking the state file
@@ -93,14 +96,20 @@ class TestPulumiCode(unittest.TestCase):
             s3_bucket_resource = resources.lookup(key="type", value="aws:s3/bucket:Bucket")[0]
             self.assertEqual("aws:s3/bucket:Bucket", s3_bucket_resource.type)
 
-            required_tags = {"CreatedBy", "CreatedOn", "Environment", "BillingProject", "Owner"}
+            required_tags = {
+                "CreatedBy",
+                "CreatedOn",
+                "Environment",
+                "BillingProject",
+                "Owner",
+            }
             self.assertTrue(required_tags <= set(s3_bucket_resource.outputs["tags"]))
 
             # upload __main__.py to the S3 bucket
-            filename       = "__main__.py"
-            file           = self.dir.parent.joinpath(filename)
+            filename = "__main__.py"
+            file = self.dir.parent.joinpath(filename)
             content_length = len(file.read_bytes())
-            content_type   = "application/x-python-code"
+            content_type = "application/x-python-code"
 
             self.s3.put_object(
                 ACL="private",
@@ -108,20 +117,17 @@ class TestPulumiCode(unittest.TestCase):
                 Body=file.read_bytes(),
                 Key=filename,
                 ContentLength=content_length,
-                ContentType=content_type
+                ContentType=content_type,
             )
 
-            response = self.s3.head_object(
-                Bucket=provisioned_bucket_name,
-                Key=filename
-            )
+            response = self.s3.head_object(Bucket=provisioned_bucket_name, Key=filename)
 
             expected = response["ContentLength"]
-            actual   = content_length
+            actual = content_length
             self.assertEqual(expected, actual)
 
             expected = response["ContentType"]
-            actual   = content_type
+            actual = content_type
             self.assertEqual(expected, actual)
 
             # execute `pulumi up` again for idempotency test

@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pitfall.config import PulumiConfigurationKey
 import unittest
+
+from pitfall.config import PulumiConfigurationKey
 
 
 class TestPulumiConfigKey(unittest.TestCase):
@@ -24,7 +25,7 @@ class TestPulumiConfigKey(unittest.TestCase):
         pass
 
     def test_plaintext_config_key(self):
-        k = v = 'test'
+        k = v = "test"
 
         cfg_variable = PulumiConfigurationKey(name=k, value=v)
 
@@ -33,12 +34,12 @@ class TestPulumiConfigKey(unittest.TestCase):
         self.assertDictEqual(cfg_variable_dict, {k: v})
 
     def test_encrypted_config_key(self):
-        k = 'dbpassword'
-        v = b'asdfghjkl'
+        k = "dbpassword"
+        v = b"asdfghjkl"
 
         cfg_variable = PulumiConfigurationKey(name=k, value=v, encrypted=True)
 
         cfg_variable_dict = cfg_variable.to_dict()
         self.assertIsInstance(cfg_variable_dict, dict)
-        self.assertDictEqual(cfg_variable_dict, {k: {'secure': v}})
-        self.assertEqual(v, cfg_variable_dict[k].get('secure'))
+        self.assertDictEqual(cfg_variable_dict, {k: {"secure": v}})
+        self.assertEqual(v, cfg_variable_dict[k].get("secure"))

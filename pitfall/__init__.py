@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import (
-    PulumiIntegrationTest,
-    PulumiIntegrationTestOptions
-)
-
 from .config import (
     PulumiConfigurationKey,
 )
-
+from .core import PulumiIntegrationTest, PulumiIntegrationTestOptions
 from .plugins import (
     PulumiPlugin,
 )
+
+__all__ = ["PulumiIntegrationTest", "PulumiIntegrationTestOptions", "PulumiConfigurationKey", "PulumiPlugin"]

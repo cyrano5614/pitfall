@@ -12,34 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from contextlib import redirect_stdout
-from io import StringIO
-from pitfall.actions import PulumiStep, PulumiPreview, PulumiUp, PulumiDestroy
-from pitfall import exceptions
-from pitfall import utils
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 import json
 import subprocess
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from pitfall import exceptions, utils
+from pitfall.actions import PulumiDestroy, PulumiPreview, PulumiStep, PulumiUp
 
 
 class TestPulumiPreview(unittest.TestCase):
     def setUp(self):
         self.pulumi_preview = PulumiPreview()
-        self.args = ['pulumi', 'preview', '--non-interactive', '--json', '--color=always']
+        self.args = ["pulumi", "preview", "--non-interactive", "--json", "--color=always"]
 
     def tearDown(self):
         pass
 
     def test_execute(self):
         stdout = b'{"config":{}, "steps":[], "changeSummary":{"create": 1}}'
-        stderr = b'warning: A new version of Pulumi is available.'
+        stderr = b"warning: A new version of Pulumi is available."
         json_stdout = json.loads(stdout)
 
         completed_process = subprocess.CompletedProcess(args=self.args, returncode=0, stdout=stdout, stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             p = self.pulumi_preview.execute()
             self.assertIsInstance(p, subprocess.CompletedProcess)
             self.assertEqual(0, p.returncode)
@@ -61,25 +61,25 @@ class TestPulumiPreview(unittest.TestCase):
 
         stdout = b'{"config":{}, "steps":[], "changeSummary":{"create": 1}}'
 
-        completed_process = subprocess.CompletedProcess(args=self.args, returncode=0, stdout=stdout, stderr=b'')
+        completed_process = subprocess.CompletedProcess(args=self.args, returncode=0, stdout=stdout, stderr=b"")
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             b = StringIO()
             with redirect_stdout(b):
                 self.pulumi_preview.execute()
 
             output = b.getvalue()
-            cmd    = f'$ {" ".join(self.args)}\n'
+            cmd = f'$ {" ".join(self.args)}\n'
             self.assertTrue(output.startswith(cmd))
 
     def test_execute_raises_exception(self):
         stdout = b'{"config":{}, "steps":[], "diagnostics":[{"message":"error: Missing required configuration variable...", "severity": "error"}]}'
         json_stdout = json.loads(stdout)
 
-        completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=stdout, stderr=b'')
+        completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=stdout, stderr=b"")
 
         err = None
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             try:
                 self.pulumi_preview.execute()
             except exceptions.PulumiPreviewExecError as e:
@@ -100,18 +100,18 @@ class TestPulumiPreview(unittest.TestCase):
         self.assertEqual(expected, self.pulumi_preview.diagnostics[0]["message"])
 
     def test_execute_raises_exception_stderr(self):
-        stderr = b'error: failed to load checkpoint...'
+        stderr = b"error: failed to load checkpoint..."
 
-        completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=b'', stderr=stderr)
+        completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=b"", stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             try:
                 self.pulumi_preview.execute()
             except exceptions.PulumiPreviewExecError as e:
                 err = e.args[0]
 
             self.assertIsInstance(err, str)
-            self.assertEqual(err, stderr.decode('utf-8'))
+            self.assertEqual(err, stderr.decode("utf-8"))
 
     def test_config(self):
         config = {"aws:region": "us-east-1", "pitfall:environment": "integration-test"}
@@ -122,7 +122,7 @@ class TestPulumiPreview(unittest.TestCase):
         self.assertDictEqual(config, self.pulumi_preview.config)
 
     def test_steps(self):
-        stdout = Path(__file__).parent.joinpath('test_data/preview.json').read_bytes()
+        stdout = Path(__file__).parent.joinpath("test_data/preview.json").read_bytes()
 
         self.pulumi_preview._stdout = stdout
 
@@ -138,16 +138,22 @@ class TestPulumiPreview(unittest.TestCase):
         self.assertEqual("pitfall-1174b83f846341908354ffc0-c4f911a", pulumi_step.new_state_inputs["bucket"])
         self.assertEqual({}, pulumi_step.new_state_outputs)
         self.assertEqual("private", pulumi_step.old_state_inputs["acl"])
-        self.assertEqual("pitfall-1174b83f846341908354ffc0-c4f911a.s3.amazonaws.com", pulumi_step.old_state_outputs["bucketDomainName"])
+        self.assertEqual(
+            "pitfall-1174b83f846341908354ffc0-c4f911a.s3.amazonaws.com",
+            pulumi_step.old_state_outputs["bucketDomainName"],
+        )
         self.assertEqual("tags", pulumi_step.diff_reasons[0])
 
     def test_change_summary(self):
         create = 1
-        same   = 2
+        same = 2
         update = 1
         delete = 3
 
-        stdout = b'{"config":{}, "steps":[], "changeSummary":{"create": %d, "same": %d, "update": %d, "delete": %d}}' % (create, same, update, delete)
+        stdout = (
+            b'{"config":{}, "steps":[], "changeSummary":{"create": %d, "same": %d, "update": %d, "delete": %d}}'
+            % (create, same, update, delete)
+        )
 
         self.pulumi_preview._stdout = stdout
 
@@ -160,13 +166,13 @@ class TestPulumiPreview(unittest.TestCase):
 class TestPulumiUp(unittest.TestCase):
     def setUp(self):
         self.pulumi_up = PulumiUp()
-        self.args = ['pulumi', 'up', '--non-interactive', '--skip-preview', '--color=always']
+        self.args = ["pulumi", "up", "--non-interactive", "--skip-preview", "--color=always"]
 
     def tearDown(self):
         pass
 
     def test_execute(self):
-        stdout = b'''Updating (pit-stack-981495048f964a8f):
+        stdout = b"""Updating (pit-stack-981495048f964a8f):
 
  +  pulumi:pulumi:Stack pit-project-9106be1dfe6947fa-pit-stack-981495048f964a8f creating
  +  aws:s3:Bucket pitfall-test-bucket creating
@@ -182,13 +188,13 @@ Resources:
 Duration: 10s
 
 Permalink: file:///Users/aliibrahim/Devel/local/pit/pit-cocobiek/.pulumi/stacks/pit-stack-981495048f964a8f.json
-'''
+"""
 
-        stderr = b'warning: A new version of Pulumi is available...'
+        stderr = b"warning: A new version of Pulumi is available..."
 
         completed_process = subprocess.CompletedProcess(args=self.args, returncode=0, stdout=stdout, stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             p = self.pulumi_up.execute()
             self.assertIsInstance(p, subprocess.CompletedProcess)
             self.assertEqual(0, p.returncode)
@@ -206,21 +212,21 @@ Permalink: file:///Users/aliibrahim/Devel/local/pit/pit-cocobiek/.pulumi/stacks/
     def test_execute_with_verbosity(self):
         self.pulumi_up.verbose = True
 
-        stdout = b'Updating (pit-stack-981495048f964a8f):'
+        stdout = b"Updating (pit-stack-981495048f964a8f):"
 
-        completed_process = subprocess.CompletedProcess(args=self.args, returncode=0, stdout=stdout, stderr=b'')
+        completed_process = subprocess.CompletedProcess(args=self.args, returncode=0, stdout=stdout, stderr=b"")
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             b = StringIO()
             with redirect_stdout(b):
                 self.pulumi_up.execute()
 
             output = b.getvalue()
-            cmd    = f'$ {" ".join(self.args)}\n'
+            cmd = f'$ {" ".join(self.args)}\n'
             self.assertTrue(output.startswith(cmd))
 
     def test_execute_raises_exception(self):
-        stdout = b'''Updating (pit-stack-1e890f9e54c44aef):
+        stdout = b"""Updating (pit-stack-1e890f9e54c44aef):
 
  +  pulumi:pulumi:Stack pit-project-e6abfe91b6a04b1b-pit-stack-1e890f9e54c44aef creating
     aws:s3:Bucket pitfall-test-bucket  error: No valid credential sources found for AWS Provider.
@@ -237,13 +243,13 @@ Resources:
     + 1 created
 
 Duration: 3s
-'''
+"""
 
-        stderr = b'warning: A new version of Pulumi is available...'
+        stderr = b"warning: A new version of Pulumi is available..."
 
         completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=stdout, stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             with self.assertRaises(exceptions.PulumiUpExecError):
                 self.pulumi_up.execute()
 
@@ -261,18 +267,18 @@ Duration: 3s
             self.assertEqual(expected, self.pulumi_up.stderr)
 
     def test_execute_raises_exception_stderr(self):
-        stderr = b'error: failed to load checkpoint...'
+        stderr = b"error: failed to load checkpoint..."
 
-        completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=b'', stderr=stderr)
+        completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=b"", stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             try:
                 self.pulumi_up.execute(expect_no_changes=True)
             except exceptions.PulumiUpExecError as e:
                 err = e.args[0]
 
             self.assertIsInstance(err, str)
-            self.assertEqual(err, stderr.decode('utf-8'))
+            self.assertEqual(err, stderr.decode("utf-8"))
 
 
 class TestPulumiDestroy(unittest.TestCase):
@@ -284,7 +290,7 @@ class TestPulumiDestroy(unittest.TestCase):
         pass
 
     def test_execute(self):
-        stdout = b'''Destroying (pit-stack-f68224b0594e4baa):
+        stdout = b"""Destroying (pit-stack-f68224b0594e4baa):
 
  -  aws:s3:Bucket pitfall-test-bucket deleting
  -  aws:s3:Bucket pitfall-test-bucket deleted
@@ -298,13 +304,13 @@ Duration: 5s
 
 Permalink: file:///Users/aliibrahim/Devel/local/pit/pit-m4zc0bhe/.pulumi/stacks/pit-stack-f68224b0594e4baa.json
 The resources in the stack have been deleted, but the history and configuration associated with the stack are still maintained.
-If you want to remove the stack completely, run 'pulumi stack rm pit-stack-f68224b0594e4baa'.'''
+If you want to remove the stack completely, run 'pulumi stack rm pit-stack-f68224b0594e4baa'."""
 
-        stderr = b'warning: A new version of Pulumi is available...'
+        stderr = b"warning: A new version of Pulumi is available..."
 
         completed_process = subprocess.CompletedProcess(args=self.args, returncode=0, stdout=stdout, stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             p = self.pulumi_destroy.execute()
             self.assertIsInstance(p, subprocess.CompletedProcess)
             self.assertEqual(0, p.returncode)
@@ -322,22 +328,22 @@ If you want to remove the stack completely, run 'pulumi stack rm pit-stack-f6822
     def test_execute_with_verbosity(self):
         self.pulumi_destroy.verbose = True
 
-        stdout = b'Destroying (pit-stack-981495048f964a8f):'
-        stderr = b'warning: A new version of Pulumi is available.'
+        stdout = b"Destroying (pit-stack-981495048f964a8f):"
+        stderr = b"warning: A new version of Pulumi is available."
 
         completed_process = subprocess.CompletedProcess(args=self.args, returncode=0, stdout=stdout, stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             b = StringIO()
             with redirect_stdout(b):
                 self.pulumi_destroy.execute()
 
             output = b.getvalue()
-            cmd    = f'$ {" ".join(self.args)}\n'
+            cmd = f'$ {" ".join(self.args)}\n'
             self.assertTrue(output.startswith(cmd))
 
     def test_execute_raises_exception(self):
-        stdout = b'''Destroying (pit-stack-f68224b0594e4baa):
+        stdout = b"""Destroying (pit-stack-f68224b0594e4baa):
 
  -  aws:s3:Bucket pitfall-test-bucket deleting
 @ destroying....
@@ -353,13 +359,13 @@ Diagnostics:
         providing credentials for the AWS Provider
 
   pulumi:pulumi:Stack (pit-project-574b710378c44755-pit-stack-f68224b0594e4baa):
-    error: update failed'''
+    error: update failed"""
 
-        stderr = b'warning: A new version of Pulumi is available...'
+        stderr = b"warning: A new version of Pulumi is available..."
 
         completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=stdout, stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             with self.assertRaises(exceptions.PulumiDestroyExecError):
                 self.pulumi_destroy.execute()
 
@@ -367,7 +373,7 @@ Diagnostics:
                 self.pulumi_destroy.execute()
             except exceptions.PulumiDestroyExecError as err:
                 expected = utils.decode_utf8(stdout)
-                actual   = err.args[0]
+                actual = err.args[0]
                 self.assertEqual(expected, actual)
 
             expected = utils.decode_utf8(stdout)
@@ -377,15 +383,15 @@ Diagnostics:
             self.assertEqual(expected, self.pulumi_destroy.stderr)
 
     def test_execute_raises_exception_stderr(self):
-        stderr = b'error: failed to load checkpoint...'
+        stderr = b"error: failed to load checkpoint..."
 
-        completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=b'', stderr=stderr)
+        completed_process = subprocess.CompletedProcess(args=self.args, returncode=255, stdout=b"", stderr=stderr)
 
-        with patch('subprocess.run', MagicMock(return_value=completed_process)):
+        with patch("subprocess.run", MagicMock(return_value=completed_process)):
             try:
                 self.pulumi_destroy.execute()
             except exceptions.PulumiDestroyExecError as e:
                 err = e.args[0]
 
             self.assertIsInstance(err, str)
-            self.assertEqual(err, stderr.decode('utf-8'))
+            self.assertEqual(err, stderr.decode("utf-8"))

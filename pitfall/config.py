@@ -16,16 +16,17 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
+
 import yaml
 
+DEFAULT_PULUMI_HOME = str(Path("~/.pulumi").expanduser())
+DEFAULT_PULUMI_CONFIG_PASSPHRASE = "pulumi"
 
-DEFAULT_PULUMI_HOME = str(Path('~/.pulumi').expanduser())
-DEFAULT_PULUMI_CONFIG_PASSPHRASE = 'pulumi'
 
-
-@dataclass
+@dataclass(frozen=True)
 class PulumiYamlConfig(ABC):
-    """ abstract base class for Pulumi YAML config files """
+    """abstract base class for Pulumi YAML config files"""
+
     def __str__(self) -> str:  # pragma: no cover
         return self.to_yaml()
 
@@ -56,11 +57,11 @@ class PulumiConfigurationKey:
     encrypted: bool = False
 
     def to_dict(self) -> dict:
-        """ returns a dictionary representation of this object """
+        """returns a dictionary representation of this object"""
         key = self.name
         value = self.value
 
         if self.encrypted:
-            value = {'secure': self.value}  # to be encrypted by _encrypt_and_format_config()
+            value = {"secure": self.value}  # to be encrypted by _encrypt_and_format_config()
 
         return {key: value}

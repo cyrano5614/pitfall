@@ -12,25 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pathlib import Path
-from pitfall.stack import PulumiStack
-from pitfall import utils
 import os
 import unittest
+from pathlib import Path
+
 import yaml
+
+from pitfall import utils
+from pitfall.stack import PulumiStack
 
 
 class TestPulumiStack(unittest.TestCase):
     def setUp(self):
-        _, encryptionsalt = utils.generate_encryptionsalt('test')
+        _, encryptionsalt = utils.generate_encryptionsalt("test")
 
         self.pulumi_stack = PulumiStack(
-            name="unit-test",
-            encryptionsalt=encryptionsalt,
-            config={
-                "aws:region": "us-west-1",
-                "env": "test"
-            }
+            name="unit-test", encryptionsalt=encryptionsalt, config={"aws:region": "us-west-1", "env": "test"}
         )
 
         self.pwd = Path.cwd()
@@ -39,13 +36,13 @@ class TestPulumiStack(unittest.TestCase):
         os.chdir(self.pwd)
 
     def test_class_attrs(self):
-        expected = 'unit-test'
+        expected = "unit-test"
         self.assertEqual(expected, self.pulumi_stack.name)
 
-        self.assertTrue(self.pulumi_stack.encryptionsalt.startswith('v1:'))
-        self.assertEqual(5, len(self.pulumi_stack.encryptionsalt.split(':')))
+        self.assertTrue(self.pulumi_stack.encryptionsalt.startswith("v1:"))
+        self.assertEqual(5, len(self.pulumi_stack.encryptionsalt.split(":")))
 
-        expected = 'Pulumi.unit-test.yaml'
+        expected = "Pulumi.unit-test.yaml"
         self.assertEqual(expected, self.pulumi_stack.filename)
 
     def test_to_yaml(self):
@@ -57,10 +54,10 @@ class TestPulumiStack(unittest.TestCase):
         self.assertDictEqual(expected, self.pulumi_stack.contents)
 
     def test_write(self):
-        os.chdir('/tmp')
+        os.chdir("/tmp")
         self.pulumi_stack.write()
 
-        path = Path('/tmp/Pulumi.unit-test.yaml')
+        path = Path("/tmp/Pulumi.unit-test.yaml")
         self.assertTrue(path.exists())
         self.assertTrue(path.is_file())
 

@@ -1,18 +1,27 @@
-from netaddr import IPNetwork
 from typing import List
-import pulumi_aws as aws
+
 import pulumi
+import pulumi_aws as aws
+from netaddr import IPNetwork
 
 
 class VpcWithPublicSubnets(pulumi.ComponentResource):
-    def __init__(self, name: str, cidr: str, subnets: int = 2, prefix: int = 19, tags: dict = None, opts: pulumi.ResourceOptions = None):
-        super().__init__('ComponentResource:VpcWithPublicSubnets', name, None, opts)
+    def __init__(
+        self,
+        name: str,
+        cidr: str,
+        subnets: int = 2,
+        prefix: int = 19,
+        tags: dict = None,
+        opts: pulumi.ResourceOptions = None,
+    ):
+        super().__init__("ComponentResource:VpcWithPublicSubnets", name, None, opts)
 
         self.vpc_name = name
-        self.cidr     = cidr
-        self.subnets  = subnets
-        self.prefix   = prefix
-        self.tags     = {} if tags is None else tags
+        self.cidr = cidr
+        self.subnets = subnets
+        self.prefix = prefix
+        self.tags = {} if tags is None else tags
 
         self.availability_zones = aws.get_availability_zones().names
 
@@ -27,9 +36,9 @@ class VpcWithPublicSubnets(pulumi.ComponentResource):
         return subnets[:count]
 
     def provision_resources(self):
-        self._vpc                = self.create_vpc()
-        self._internet_gateway   = self.create_internet_gateway()
-        self._public_subnets     = self.create_public_subnets()
+        self._vpc = self.create_vpc()
+        self._internet_gateway = self.create_internet_gateway()
+        self._public_subnets = self.create_public_subnets()
         self._public_route_table = self.create_public_route_table()
 
         self.create_public_default_route()
@@ -41,22 +50,16 @@ class VpcWithPublicSubnets(pulumi.ComponentResource):
             cidr_block=self.cidr,
             enable_dns_hostnames=True,
             enable_dns_support=True,
-            tags={
-                "Name": self.vpc_name,
-                **self.tags
-            },
-            opts=pulumi.ResourceOptions(parent=self)
+            tags={"Name": self.vpc_name, **self.tags},
+            opts=pulumi.ResourceOptions(parent=self),
         )
 
     def create_internet_gateway(self) -> aws.ec2.InternetGateway:
         return aws.ec2.InternetGateway(
             "internet-gateway",
             vpc_id=self._vpc.id,
-            tags={
-                "Name": self.vpc_name,
-                **self.tags
-            },
-            opts=pulumi.ResourceOptions(parent=self)
+            tags={"Name": self.vpc_name, **self.tags},
+            opts=pulumi.ResourceOptions(parent=self),
         )
 
     def create_public_subnets(self) -> List[aws.ec2.Subnet]:
@@ -74,12 +77,8 @@ class VpcWithPublicSubnets(pulumi.ComponentResource):
                 availability_zone=self.availability_zones[i],
                 map_public_ip_on_launch=True,
                 assign_ipv6_address_on_creation=False,
-                tags={
-                    "Name": name,
-                    "VPC": self.vpc.id,
-                    **self.tags
-                },
-                opts=pulumi.ResourceOptions(parent=self)
+                tags={"Name": name, "VPC": self.vpc.id, **self.tags},
+                opts=pulumi.ResourceOptions(parent=self),
             )
             subnets.append(subnet)
         return subnets
@@ -88,13 +87,7 @@ class VpcWithPublicSubnets(pulumi.ComponentResource):
         name = "public-route-table"
 
         return aws.ec2.RouteTable(
-            name,
-            vpc_id=self._vpc.id,
-            tags={
-                "Name": name,
-                **self.tags
-            },
-            opts=pulumi.ResourceOptions(parent=self)
+            name, vpc_id=self._vpc.id, tags={"Name": name, **self.tags}, opts=pulumi.ResourceOptions(parent=self)
         )
 
     def create_public_default_route(self) -> aws.ec2.Route:
@@ -103,7 +96,7 @@ class VpcWithPublicSubnets(pulumi.ComponentResource):
             route_table_id=self.public_route_table.id,
             destination_cidr_block="0.0.0.0/0",
             gateway_id=self.internet_gateway.id,
-            opts=pulumi.ResourceOptions(parent=self)
+            opts=pulumi.ResourceOptions(parent=self),
         )
 
     def create_public_route_table_association(self) -> None:
@@ -112,7 +105,7 @@ class VpcWithPublicSubnets(pulumi.ComponentResource):
                 f"public-subnet-{i + 1}-rta",
                 subnet_id=subnet.id,
                 route_table_id=self.public_route_table.id,
-                opts=pulumi.ResourceOptions(parent=self)
+                opts=pulumi.ResourceOptions(parent=self),
             )
 
     @property

@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pitfall.plugins import PulumiPlugin
 import unittest
+
+from pitfall.plugins import PulumiPlugin
 
 
 class TestPulumiPlugin(unittest.TestCase):
@@ -24,9 +25,9 @@ class TestPulumiPlugin(unittest.TestCase):
         pass
 
     def test_class_attrs(self):
-        kind    = 'resource'
-        name    = 'aws'
-        version = '0.0.1'
+        kind = "resource"
+        name = "aws"
+        version = "0.0.1"
 
         plugin = PulumiPlugin(kind=kind, name=name, version=version)
 

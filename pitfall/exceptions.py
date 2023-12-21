@@ -14,30 +14,31 @@
 
 
 class PulumiBinaryNotFoundError(Exception):
-    """ raised when the pulumi binary cannot be found on the system """
-    def __init__(self, message='Could not find the pulumi binary on the system'):
+    """raised when the pulumi binary cannot be found on the system"""
+
+    def __init__(self, message="Could not find the pulumi binary on the system"):
         super().__init__(message)
 
 
 class PulumiVersionExecError(Exception):
-    """ raised when `pulumi version` returns non-zero exit code """
+    """raised when `pulumi version` returns non-zero exit code"""
 
 
 class PulumiPluginInstallError(Exception):
-    """ raised when pulumi fails to install a plugin """
+    """raised when pulumi fails to install a plugin"""
 
 
 class PulumiStackOutputError(Exception):
-    """ raised when pulumi fails to return stack outputs """
+    """raised when pulumi fails to return stack outputs"""
 
 
 class PulumiPreviewExecError(Exception):
-    """ raised when `pulumi preview` returns non-zero exit code """
+    """raised when `pulumi preview` returns non-zero exit code"""
 
 
 class PulumiUpExecError(Exception):
-    """ raised when `pulumi up` returns non-zero exit code """
+    """raised when `pulumi up` returns non-zero exit code"""
 
 
 class PulumiDestroyExecError(Exception):
-    """ raised when `pulumi destroy` returns non-zero exit code """
+    """raised when `pulumi destroy` returns non-zero exit code"""

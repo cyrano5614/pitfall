@@ -1,15 +1,17 @@
-from pitfall.helpers.aws import iam
-from moto import mock_iam
-import boto3
 import json
 import os
 import unittest
+
+import boto3
+from moto import mock_iam
+
+from pitfall.helpers.aws import iam
 
 
 class TestTemporaryUser(unittest.TestCase):
     def setUp(self):
         # set AWS credentials for moto
-        os.environ["AWS_ACCESS_KEY_ID"]     = "test"
+        os.environ["AWS_ACCESS_KEY_ID"] = "test"
         os.environ["AWS_SECRET_ACCESS_KEY"] = "test"
 
         self.base_arn = "arn:aws:iam::123456789012"
@@ -21,18 +23,13 @@ class TestTemporaryUser(unittest.TestCase):
     def create_test_iam_policy(self):
         self.tmp_user.iam_client.create_policy(
             PolicyName="test",
-            PolicyDocument=json.dumps({
-                "Version": "2012-10-17",
-                "Statement": [{
-                    "Action": "*",
-                    "Resource": "*",
-                    "Effect": "Allow"
-                }]
-            })
+            PolicyDocument=json.dumps(
+                {"Version": "2012-10-17", "Statement": [{"Action": "*", "Resource": "*", "Effect": "Allow"}]}
+            ),
         )
 
     def test_username(self):
-        self.assertTrue(self.tmp_user.username.startswith('pitfall-tmp-user-'))
+        self.assertTrue(self.tmp_user.username.startswith("pitfall-tmp-user-"))
 
     @mock_iam
     def test_create(self):
@@ -44,13 +41,13 @@ class TestTemporaryUser(unittest.TestCase):
             {
                 "msg": "verify the username of the created user",
                 "expected": self.username,
-                "actual": r["User"]["UserName"]
+                "actual": r["User"]["UserName"],
             },
             {
                 "msg": "verify the ARN of the created user",
                 "expected": f"{self.base_arn}:user/{self.username}",
-                "actual": r["User"]["Arn"]
-            }
+                "actual": r["User"]["Arn"],
+            },
         ]
 
         for i in sub_tests:
@@ -114,7 +111,7 @@ class TestTemporaryUser(unittest.TestCase):
 
     @mock_iam
     def test_context_manager(self):
-        iam_client = boto3.client('iam')
+        iam_client = boto3.client("iam")
 
         self.create_test_iam_policy()
 

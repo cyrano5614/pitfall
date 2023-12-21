@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from urllib.parse import ParseResult
-from pitfall.project import PulumiProject
-from pitfall import utils
-import os
+
 import yaml
-import unittest
+
+from pitfall import utils
+from pitfall.project import PulumiProject
 
 
 class TestPulumiProject(unittest.TestCase):
@@ -35,7 +37,7 @@ class TestPulumiProject(unittest.TestCase):
             self.pulumi_project.name = "unit-test"
 
     def test_class_attrs(self):
-        expected = 'python'
+        expected = "python"
         self.assertEqual(expected, self.pulumi_project.runtime)
 
         expected = utils.get_project_backend_url()
@@ -45,7 +47,7 @@ class TestPulumiProject(unittest.TestCase):
 
         self.assertEqual(expected["url"], self.pulumi_project.url.geturl())
 
-        expected = 'Pulumi.yaml'
+        expected = "Pulumi.yaml"
         self.assertEqual(expected, self.pulumi_project.filename)
 
     def test_to_yaml(self):
@@ -57,10 +59,10 @@ class TestPulumiProject(unittest.TestCase):
         self.assertDictEqual(expected, self.pulumi_project.contents)
 
     def test_write(self):
-        os.chdir('/tmp')
+        os.chdir("/tmp")
         self.pulumi_project.write()
 
-        path = Path('/tmp/Pulumi.yaml')
+        path = Path("/tmp/Pulumi.yaml")
         self.assertTrue(path.exists())
         self.assertTrue(path.is_file())
 

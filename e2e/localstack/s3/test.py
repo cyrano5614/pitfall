@@ -1,30 +1,31 @@
-from pitfall import PulumiIntegrationTest, PulumiIntegrationTestOptions
-from pitfall import PulumiConfigurationKey, PulumiPlugin
-from pathlib import Path
-import botocore
-import boto3
 import os
 import unittest
+from pathlib import Path
+
+import boto3
+import botocore
+
+from pitfall import PulumiConfigurationKey, PulumiIntegrationTest, PulumiIntegrationTestOptions, PulumiPlugin
 
 
 class TestProvisioningS3Bucket(unittest.TestCase):
     def setUp(self):
         # use localstack to test provisioning
-        localstack_s3_endpoint = os.environ.get('LOCALSTACK_S3_ENDPOINT', 'http://localhost:4572')
+        localstack_s3_endpoint = os.environ.get("LOCALSTACK_S3_ENDPOINT", "http://localhost:4572")
 
         self.s3 = boto3.client(
-            service_name='s3',
+            service_name="s3",
             endpoint_url=localstack_s3_endpoint,
             verify=False,
-            aws_access_key_id='integration-test',
-            aws_secret_access_key='integration-test',
+            aws_access_key_id="integration-test",
+            aws_secret_access_key="integration-test",
             config=botocore.client.Config(
-                region_name='us-east-1',
+                region_name="us-east-1",
                 connect_timeout=30,
                 read_timeout=30,
                 retries={"max_attempts": 1},
-                s3={"addressing_style": "path"}
-            )
+                s3={"addressing_style": "path"},
+            ),
         )
 
         self.dir = Path(__file__)
@@ -34,20 +35,18 @@ class TestProvisioningS3Bucket(unittest.TestCase):
         os.chdir(self.pwd)
 
     def test_e2e_using_localstack_with_autodestroy(self):
-        bucket_name = f"pitfall-localstack-test-bucket-1"
+        bucket_name = "pitfall-localstack-test-bucket-1"
 
         config = [
-            PulumiConfigurationKey(name='local-mode', value=True),
-            PulumiConfigurationKey(name='s3-bucket-name', value=bucket_name),
-            PulumiConfigurationKey(name='environment', value='test'),
-            PulumiConfigurationKey(name='owner', value='@bincyber'),
-            PulumiConfigurationKey(name='billing-project', value='integration-testing'),
-            PulumiConfigurationKey(name='customer', value=b'ACME Corp', encrypted=True)
+            PulumiConfigurationKey(name="local-mode", value=True),
+            PulumiConfigurationKey(name="s3-bucket-name", value=bucket_name),
+            PulumiConfigurationKey(name="environment", value="test"),
+            PulumiConfigurationKey(name="owner", value="@bincyber"),
+            PulumiConfigurationKey(name="billing-project", value="integration-testing"),
+            PulumiConfigurationKey(name="customer", value=b"ACME Corp", encrypted=True),
         ]
 
-        plugins = [
-            PulumiPlugin(kind='resource', name='aws', version='v1.7.0')
-        ]
+        plugins = [PulumiPlugin(kind="resource", name="aws", version="v1.7.0")]
 
         provisioned_bucket_name = None
 
@@ -64,20 +63,18 @@ class TestProvisioningS3Bucket(unittest.TestCase):
             self.s3.head_bucket(Bucket=provisioned_bucket_name)
 
     def test_e2e_using_localstack_without_autodestroy(self):
-        bucket_name = f"pitfall-localstack-test-bucket-2"
+        bucket_name = "pitfall-localstack-test-bucket-2"
 
         config = [
-            PulumiConfigurationKey(name='local-mode', value=True),
-            PulumiConfigurationKey(name='s3-bucket-name', value=bucket_name),
-            PulumiConfigurationKey(name='environment', value='test'),
-            PulumiConfigurationKey(name='owner', value='@bincyber'),
-            PulumiConfigurationKey(name='billing-project', value='integration-testing'),
-            PulumiConfigurationKey(name='customer', value=b'ACME Corp', encrypted=True)
+            PulumiConfigurationKey(name="local-mode", value=True),
+            PulumiConfigurationKey(name="s3-bucket-name", value=bucket_name),
+            PulumiConfigurationKey(name="environment", value="test"),
+            PulumiConfigurationKey(name="owner", value="@bincyber"),
+            PulumiConfigurationKey(name="billing-project", value="integration-testing"),
+            PulumiConfigurationKey(name="customer", value=b"ACME Corp", encrypted=True),
         ]
 
-        plugins = [
-            PulumiPlugin(kind='resource', name='aws', version='v1.7.0')
-        ]
+        plugins = [PulumiPlugin(kind="resource", name="aws", version="v1.7.0")]
 
         opts = PulumiIntegrationTestOptions(verbose=True, cleanup=False, preview=False, destroy=False)
 
@@ -114,10 +111,10 @@ class TestProvisioningS3Bucket(unittest.TestCase):
             resources.render_tree()
 
             # upload __main__.py to the S3 bucket
-            filename       = "__main__.py"
-            file           = self.dir.parent.joinpath(filename)
+            filename = "__main__.py"
+            file = self.dir.parent.joinpath(filename)
             content_length = len(file.read_bytes())
-            content_type   = "application/x-python-code"
+            content_type = "application/x-python-code"
 
             self.s3.put_object(
                 ACL="private",
@@ -125,30 +122,24 @@ class TestProvisioningS3Bucket(unittest.TestCase):
                 Body=file.read_bytes(),
                 Key=filename,
                 ContentLength=content_length,
-                ContentType=content_type
+                ContentType=content_type,
             )
 
-            response = self.s3.head_object(
-                Bucket=provisioned_bucket_name,
-                Key=filename
-            )
+            response = self.s3.head_object(Bucket=provisioned_bucket_name, Key=filename)
 
             expected = response["ContentLength"]
-            actual   = content_length
+            actual = content_length
             self.assertEqual(expected, actual)
 
             expected = response["ContentType"]
-            actual   = content_type
+            actual = content_type
             self.assertEqual(expected, actual)
 
             # execute `pulumi up` again for idempotency test
             integration_test.up.execute(expect_no_changes=True)
 
             # `force_destroy` did not work, uplaoded file must be manually deleted
-            self.s3.delete_object(
-                Bucket=provisioned_bucket_name,
-                Key=filename
-            )
+            self.s3.delete_object(Bucket=provisioned_bucket_name, Key=filename)
 
             # execute `pulumi destroy` to delete the S3 bucket
             integration_test.destroy.execute()

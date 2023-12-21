@@ -1,41 +1,34 @@
-from pitfall.helpers.aws import utils
-from pitfall import PulumiIntegrationTest, PulumiIntegrationTestOptions
-from pitfall import PulumiConfigurationKey, PulumiPlugin
-from pathlib import Path
-import boto3
 import unittest
+from pathlib import Path
+
+import boto3
+
+from pitfall import PulumiConfigurationKey, PulumiIntegrationTest, PulumiIntegrationTestOptions, PulumiPlugin
+from pitfall.helpers.aws import utils
 
 
 class IntegrationTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.region   = utils.get_random_region()
+        cls.region = utils.get_random_region()
         vpc_name = "pitfall-test-vpc"
         cls.vpc_cidr = "10.0.0.0/16"
-        subnets  = 2
-        prefix   = 20
+        subnets = 2
+        prefix = 20
 
         config = [
-            PulumiConfigurationKey(name='aws:region', value=cls.region),
-            PulumiConfigurationKey(name='environment', value='test'),
-            PulumiConfigurationKey(name='billing-project', value='integration-testing'),
-            PulumiConfigurationKey(name='vpc-name', value=vpc_name),
-            PulumiConfigurationKey(name='vpc-cidr', value=cls.vpc_cidr),
-            PulumiConfigurationKey(name='subnets', value=subnets),
-            PulumiConfigurationKey(name='prefix', value=prefix),
+            PulumiConfigurationKey(name="aws:region", value=cls.region),
+            PulumiConfigurationKey(name="environment", value="test"),
+            PulumiConfigurationKey(name="billing-project", value="integration-testing"),
+            PulumiConfigurationKey(name="vpc-name", value=vpc_name),
+            PulumiConfigurationKey(name="vpc-cidr", value=cls.vpc_cidr),
+            PulumiConfigurationKey(name="subnets", value=subnets),
+            PulumiConfigurationKey(name="prefix", value=prefix),
         ]
 
-        plugins = [
-            PulumiPlugin(kind='resource', name='aws', version='v1.7.0')
-        ]
+        plugins = [PulumiPlugin(kind="resource", name="aws", version="v1.7.0")]
 
-        opts = PulumiIntegrationTestOptions(
-            verbose=True,
-            cleanup=False,
-            preview=True,
-            up=True,
-            destroy=True
-        )
+        opts = PulumiIntegrationTestOptions(verbose=True, cleanup=False, preview=True, up=True, destroy=True)
 
         directory = Path(__file__)
 
@@ -48,7 +41,7 @@ class IntegrationTest(unittest.TestCase):
 
     def setUp(self):
         self.required_tags = {"CreatedBy", "Environment", "BillingProject", "PulumiProject", "PulumiStack"}
-        self.ec2 = boto3.client('ec2', region_name=self.region)
+        self.ec2 = boto3.client("ec2", region_name=self.region)
 
     def test_pulumi_preview(self):
         # verify that 9 create steps are planned
@@ -67,30 +60,12 @@ class IntegrationTest(unittest.TestCase):
             self.assertEqual(resources.providers["pulumi:providers:aws"], 8)
 
         table = [
-            {
-                'type': "aws:ec2/vpc:Vpc",
-                'count': 1
-            },
-            {
-                'type': "aws:ec2/subnet:Subnet",
-                'count': 2
-            },
-            {
-                'type': "aws:ec2/routeTable:RouteTable",
-                'count': 1
-            },
-            {
-                'type': "aws:ec2/internetGateway:InternetGateway",
-                'count': 1
-            },
-            {
-                'type': "aws:ec2/routeTableAssociation:RouteTableAssociation",
-                'count': 2
-            },
-            {
-                'type': "aws:ec2/route:Route",
-                'count': 1
-            }
+            {"type": "aws:ec2/vpc:Vpc", "count": 1},
+            {"type": "aws:ec2/subnet:Subnet", "count": 2},
+            {"type": "aws:ec2/routeTable:RouteTable", "count": 1},
+            {"type": "aws:ec2/internetGateway:InternetGateway", "count": 1},
+            {"type": "aws:ec2/routeTableAssociation:RouteTableAssociation", "count": 2},
+            {"type": "aws:ec2/route:Route", "count": 1},
         ]
 
         for i in table:
@@ -107,7 +82,7 @@ class IntegrationTest(unittest.TestCase):
 
         vpc_id = outputs["vpc"]["id"]
 
-        r   = self.ec2.describe_vpcs(VpcIds=[vpc_id])
+        r = self.ec2.describe_vpcs(VpcIds=[vpc_id])
         vpc = r["Vpcs"][0]
 
         with self.subTest(msg="Verify VPC CIDR is correct"):
@@ -125,7 +100,7 @@ class IntegrationTest(unittest.TestCase):
         r = self.ec2.describe_subnets(SubnetIds=subnet_ids)
 
         expected_cidrs = ["10.0.0.0/20", "10.0.16.0/20"]
-        actual_cidrs   = [i["CidrBlock"] for i in r["Subnets"]]
+        actual_cidrs = [i["CidrBlock"] for i in r["Subnets"]]
         self.assertListEqual(expected_cidrs, sorted(actual_cidrs))
 
     def test_verify_route_table(self):
@@ -134,7 +109,7 @@ class IntegrationTest(unittest.TestCase):
         vpc_id = outputs["vpc"]["id"]
         rtb_id = outputs["public_route_table"]["id"]
 
-        r   = self.ec2.describe_route_tables(RouteTableIds=[rtb_id])
+        r = self.ec2.describe_route_tables(RouteTableIds=[rtb_id])
         rtb = r["RouteTables"][0]
 
         with self.subTest(msg="Verify route table belongs to the VPC"):

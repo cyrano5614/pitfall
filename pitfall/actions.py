@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import exceptions
-from . import utils
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import List, Union
 import json
 import re
 import subprocess
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import List, Union
+
+from . import exceptions, utils
 
 
 def print_verbose_output(args: list, stdout: str, stderr: str):
@@ -85,7 +85,7 @@ class PulumiAction(ABC):
 class PulumiPreview(PulumiAction):
     def execute(self) -> subprocess.CompletedProcess:
         pulumi_binary = utils.find_pulumi_binary()
-        cmd           = [pulumi_binary, 'preview', '--non-interactive', '--json', '--color=always']
+        cmd = [pulumi_binary, "preview", "--non-interactive", "--json", "--color=always"]
 
         process = subprocess.run(cmd, capture_output=True)
 
@@ -117,7 +117,7 @@ class PulumiPreview(PulumiAction):
 
         preview_steps = self.stdout.get("steps", [])
 
-        regex = re.compile('pulumi:.+:.+')
+        regex = re.compile("pulumi:.+:.+")
 
         for i in preview_steps:
             step_type = i["newState"]["type"]
@@ -132,7 +132,7 @@ class PulumiPreview(PulumiAction):
                 new_state=i["newState"],
                 old_state=i.get("oldState", {}),
                 detailed_diff=i.get("detailedDiff", {}),
-                diff_reasons=i.get("diffReasons", [])
+                diff_reasons=i.get("diffReasons", []),
             )
             steps.append(pulumi_step)
         return steps
@@ -161,10 +161,16 @@ class PulumiPreview(PulumiAction):
 class PulumiUp(PulumiAction):
     def execute(self, expect_no_changes=False) -> subprocess.CompletedProcess:
         pulumi_binary = utils.find_pulumi_binary()
-        cmd           = [pulumi_binary, 'up', '--non-interactive', '--skip-preview', '--color=always']  # TODO: enable json output with "--json"
+        cmd = [
+            pulumi_binary,
+            "up",
+            "--non-interactive",
+            "--skip-preview",
+            "--color=always",
+        ]  # TODO: enable json output with "--json"
 
         if expect_no_changes:
-            cmd.append('--expect-no-changes')
+            cmd.append("--expect-no-changes")
 
         process = subprocess.run(cmd, capture_output=True)
 
@@ -186,7 +192,13 @@ class PulumiUp(PulumiAction):
 class PulumiDestroy(PulumiAction):
     def execute(self) -> subprocess.CompletedProcess:
         pulumi_binary = utils.find_pulumi_binary()
-        cmd           = [pulumi_binary, 'destroy', '--non-interactive', '--skip-preview', '--color=always']  # TODO: enable json output with "--json"
+        cmd = [
+            pulumi_binary,
+            "destroy",
+            "--non-interactive",
+            "--skip-preview",
+            "--color=always",
+        ]  # TODO: enable json output with "--json"
 
         process = subprocess.run(cmd, capture_output=True)
 

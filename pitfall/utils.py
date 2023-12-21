@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import exceptions
+import base64
+import distutils.spawn
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Tuple
+
 from Cryptodome.Cipher import AES
 from Cryptodome.Hash import SHA1, SHA256
 from Cryptodome.Protocol.KDF import PBKDF2
 from Cryptodome.Random import get_random_bytes
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, Tuple
-import base64
-import distutils.spawn
-import uuid
+
+from . import exceptions
 
 
 def get_random_string(length: int = 32) -> str:
@@ -48,7 +50,7 @@ def generate_project_name() -> str:
     :returns: a unique project name
     :rtype: str
     """
-    random_string = get_random_string(16)
+    random_string = get_random_string(8)
     project_name = f"pitf-project-{random_string}"
     return project_name
 
@@ -57,7 +59,7 @@ def generate_stack_name() -> str:
     """
     This fuction generates and returns a unique name for the Pulumi Stack
     """
-    random_string = get_random_string(16)
+    random_string = get_random_string(8)
     stack_name = f"pitf-stack-{random_string}"
     return stack_name
 
@@ -77,15 +79,15 @@ def get_project_backend_url(path: Path = None) -> Dict[str, str]:
 
 
 def generate_aes_encryption_key(password: str, salt: bytes = None) -> Tuple[bytes, bytes]:
-    """ uses PBKDF2 with SHA256 HMAC to derive a 32-byte encryption key from the provided password """
+    """uses PBKDF2 with SHA256 HMAC to derive a 32-byte encryption key from the provided password"""
     if salt is None:
         salt = get_random_bytes(8)
     return PBKDF2(password, salt, 32, count=1000000, hmac_hash_module=SHA256), salt
 
 
 def encrypt_with_aes_gcm(key: bytes, plaintext: bytes) -> Tuple[bytes, bytes, bytes]:
-    """ encrypts plaintext using 256-bit AES in GCM mode """
-    nonce  = get_random_bytes(12)
+    """encrypts plaintext using 256-bit AES in GCM mode"""
+    nonce = get_random_bytes(12)
     cipher = AES.new(key=key, nonce=nonce, mode=AES.MODE_GCM, mac_len=16)
 
     ciphertext, mac = cipher.encrypt_and_digest(plaintext)
@@ -93,25 +95,25 @@ def encrypt_with_aes_gcm(key: bytes, plaintext: bytes) -> Tuple[bytes, bytes, by
 
 
 def decrypt_with_aes_gcm(key: bytes, nonce: bytes, ciphertext: bytes, mac: bytes) -> bytes:
-    """ decrypts 256-bit AES encrypted ciphertext """
-    cipher    = AES.new(key=key, nonce=nonce, mode=AES.MODE_GCM, mac_len=16)
+    """decrypts 256-bit AES encrypted ciphertext"""
+    cipher = AES.new(key=key, nonce=nonce, mode=AES.MODE_GCM, mac_len=16)
     plaintext = cipher.decrypt_and_verify(ciphertext, mac)
     return plaintext
 
 
 def generate_encryptionsalt(password: str) -> Tuple[bytes, str]:
-    """ generates the base64 encoded string for the encryptionsalt field in Pulumi stack files """
-    plaintext = b'pulumi'
+    """generates the base64 encoded string for the encryptionsalt field in Pulumi stack files"""
+    plaintext = b"pulumi"
 
-    key, salt               = generate_aes_encryption_key(password)
-    nonce, ciphertext, mac  = encrypt_with_aes_gcm(key, plaintext)
+    key, salt = generate_aes_encryption_key(password)
+    nonce, ciphertext, mac = encrypt_with_aes_gcm(key, plaintext)
 
     # 16-byte MAC tag is appended to the ciphertext
     message = ciphertext + mac
 
-    salt_b64    = base64.b64encode(salt).decode('utf-8')
-    nonce_b64   = base64.b64encode(nonce).decode('utf-8')
-    message_b64 = base64.b64encode(message).decode('utf-8')
+    salt_b64 = base64.b64encode(salt).decode("utf-8")
+    nonce_b64 = base64.b64encode(nonce).decode("utf-8")
+    message_b64 = base64.b64encode(message).decode("utf-8")
 
     encryptionsalt = f"v1:{salt_b64}:v1:{nonce_b64}:{message_b64}"
 
@@ -119,14 +121,14 @@ def generate_encryptionsalt(password: str) -> Tuple[bytes, str]:
 
 
 def get_encrypted_secret(plaintext: bytes, key: bytes) -> str:
-    """ returns a base64 formatted encrypted Pulumi secret """
-    nonce, ciphertext, mac  = encrypt_with_aes_gcm(key, plaintext)
+    """returns a base64 formatted encrypted Pulumi secret"""
+    nonce, ciphertext, mac = encrypt_with_aes_gcm(key, plaintext)
 
     # 16-byte MAC tag is appended to the ciphertext
     message = ciphertext + mac
 
-    nonce_b64   = base64.b64encode(nonce).decode('utf-8')
-    message_b64 = base64.b64encode(message).decode('utf-8')
+    nonce_b64 = base64.b64encode(nonce).decode("utf-8")
+    message_b64 = base64.b64encode(message).decode("utf-8")
 
     encrypted_secret = f"v1:{nonce_b64}:{message_b64}"
 
@@ -134,26 +136,26 @@ def get_encrypted_secret(plaintext: bytes, key: bytes) -> str:
 
 
 def get_current_timestamp() -> str:
-    """ returns the current date and time in ISO 8601 format """
+    """returns the current date and time in ISO 8601 format"""
     return datetime.now().astimezone().isoformat()
 
 
 def sha1sum(data: bytes) -> str:
-    """ returns the SHA1 hash of the provided data """
+    """returns the SHA1 hash of the provided data"""
     h = SHA1.new()
     h.update(data)
     return h.hexdigest()
 
 
 def sha256sum(data: bytes) -> str:
-    """ returns the SHA256 hash of the provided data """
+    """returns the SHA256 hash of the provided data"""
     h = SHA256.new()
     h.update(data)
     return h.hexdigest()
 
 
 def decode_utf8(data: bytes) -> str:
-    return data.decode('utf-8')
+    return data.decode("utf-8")
 
 
 def get_directory_abspath(path: Path) -> Path:
@@ -163,7 +165,7 @@ def get_directory_abspath(path: Path) -> Path:
 
 
 def find_pulumi_binary() -> str:
-    location = distutils.spawn.find_executable('pulumi')
+    location = distutils.spawn.find_executable("pulumi")
     if location is None:
         raise exceptions.PulumiBinaryNotFoundError("Could not find the pulumi binary on the system")
     return location

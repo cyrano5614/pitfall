@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import utils
-from .config import PulumiYamlConfig
 from dataclasses import dataclass, field
 from pathlib import Path
-from urllib.parse import urlparse, ParseResult
+from urllib.parse import ParseResult, urlparse
+
+from . import utils
+from .config import PulumiYamlConfig
 
 
 @dataclass(frozen=True)
 class PulumiProject(PulumiYamlConfig):
     # TODO: requires documentation
-    """ data class to model Pulumi project YAML file: Pulumi.yaml """
+    """data class to model Pulumi project YAML file: Pulumi.yaml"""
+
     name: str = field(default_factory=utils.generate_project_name)
     description: str = "Pulumi Python program"
     runtime: str = "python"
@@ -34,7 +36,7 @@ class PulumiProject(PulumiYamlConfig):
 
     @property
     def filepath(self) -> Path:
-        return Path.cwd().joinpath('Pulumi.yaml')
+        return Path.cwd().joinpath("Pulumi.yaml")
 
     @property
     def url(self) -> ParseResult:
