@@ -11,7 +11,7 @@ from pitfall import PulumiConfigurationKey, PulumiIntegrationTest, PulumiIntegra
 class TestProvisioningS3Bucket(unittest.TestCase):
     def setUp(self):
         # use localstack to test provisioning
-        localstack_s3_endpoint = os.environ.get("LOCALSTACK_S3_ENDPOINT", "http://localhost:4572")
+        localstack_s3_endpoint = os.environ.get("LOCALSTACK_S3_ENDPOINT", "http://localhost:4566")
 
         self.s3 = boto3.client(
             service_name="s3",
@@ -46,7 +46,7 @@ class TestProvisioningS3Bucket(unittest.TestCase):
             PulumiConfigurationKey(name="customer", value=b"ACME Corp", encrypted=True),
         ]
 
-        plugins = [PulumiPlugin(kind="resource", name="aws", version="v1.7.0")]
+        plugins = [PulumiPlugin(kind="resource", name="aws", version="v6.15.0")]
 
         provisioned_bucket_name = None
 
@@ -74,7 +74,7 @@ class TestProvisioningS3Bucket(unittest.TestCase):
             PulumiConfigurationKey(name="customer", value=b"ACME Corp", encrypted=True),
         ]
 
-        plugins = [PulumiPlugin(kind="resource", name="aws", version="v1.7.0")]
+        plugins = [PulumiPlugin(kind="resource", name="aws", version="v6.15.0")]
 
         opts = PulumiIntegrationTestOptions(verbose=True, cleanup=False, preview=False, destroy=False)
 

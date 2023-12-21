@@ -52,7 +52,14 @@ static-analysis:
 	poetry run mypy pitfall/*
 
 run-localstack:
-	docker run -d -e "HOSTNAME=localhost" -e "SERVICES=s3" -p 4572:4572 --name "localstack" localstack/localstack:0.10.3
+	docker run --rm -d \
+		--name "localstack" \
+		-p 4566:4566 \
+		-p 4510-4559:4510-4559 \
+		localstack/localstack:3.0.0
+
+stop-localstack:
+	docker stop localstack
 
 package:
 	python setup.py sdist bdist_wheel
