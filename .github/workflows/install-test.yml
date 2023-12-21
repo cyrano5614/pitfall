@@ -10,6 +10,13 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
         poetry-version: ["1.7.1"]
+    services:
+      # Label used to access the service container
+      localstack:
+        image: localstack/localstack:3.0.0
+        ports:
+          - 4566:4566
+          - 4510-4559:4510-4559
 
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +70,12 @@ jobs:
       - name: Run linter
         run: make lint
       #----------------------------------------------
-      #              run test suite
+      #              run unit test suite
       #----------------------------------------------
-      - name: Run tests
+      - name: Run unit tests
         run: make test
+      #----------------------------------------------
+      #         run integration test suite
+      #----------------------------------------------
+      - name: Run local integration tests
+        run: make e2e-test-localstack
